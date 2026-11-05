@@ -1,47 +1,53 @@
-"""Descarga el dataset MeLiSA (reseñas de Mercado Libre en español) y lo guarda
-como data/raw/reviews.csv con las columnas: texto, estrellas.
+"""Descarga MeLiSA (reseñas de Mercado Libre en español) y lo guarda como
+data/raw/reviews.csv con las columnas: texto, estrellas.
 
 Uso:
     python scripts/download_data.py
     python scripts/download_data.py --max-filas 60000
 
-Licencia: MeLiSA se distribuye bajo el acuerdo de Amazon
-(https://docs.opendata.aws/amazon-reviews-ml/license.txt). Úsalo solo con fines
-académicos y cita la fuente en el informe.
+NOTA IMPORTANTE (documéntala en el informe):
+- El repo `lpsc-fiuba/melisa` en la rama `main` solo trae una versión DEMO
+  (archivos de ~0.5 KB). Los autores publicaron antes la versión completa
+  (es/train.csv ~117 MB) en el commit fijado abajo, por eso se descarga con `revision=`.
+- Ya no se usa `datasets.load_dataset`: las versiones nuevas de `datasets` no
+  soportan scripts de carga (melisa.py). Se descarga el CSV directo con huggingface_hub.
+- Licencia: acuerdo de Amazon (https://docs.opendata.aws/amazon-reviews-ml/license.txt).
+  Léela y úsalo solo con fines académicos, citando la fuente.
 """
 import argparse
 from pathlib import Path
 
 import pandas as pd
+from huggingface_hub import hf_hub_download
 
-DATASET = "lpsc-fiuba/melisa"
+REPO = "lpsc-fiuba/melisa"
+REVISION = "701a2f09c91fcbf1d7da0c485c6482e920dd9aa8"  # commit con los datos completos
+ARCHIVO = "es/train.csv"
 SALIDA = Path(__file__).resolve().parent.parent / "data" / "raw" / "reviews.csv"
 
-# Nombres de columna posibles según la versión del dataset
-COLS_TEXTO = ["review_body", "review_content", "text", "review"]
-COLS_ESTRELLAS = ["review_rate", "star_rating", "rating", "stars", "label"]
-
-
-def primera_columna(df: pd.DataFrame, candidatas: list[str]) -> str:
-    for c in candidatas:
-        if c in df.columns:
-            return c
-    raise KeyError(f"No encontré ninguna de {candidatas}. Columnas: {list(df.columns)}")
+# Columnas documentadas en la tarjeta del dataset
+COL_TEXTO = "review_content"
+COL_ESTRELLAS = "review_rate"
 
 
 def main(max_filas: int) -> None:
-    from datasets import load_dataset  # import tardío: solo se necesita aquí
+    print(f"Descargando {ARCHIVO} de {REPO} (revisión {REVISION[:7]})...")
+    ruta = hf_hub_download(repo_id=REPO, filename=ARCHIVO, repo_type="dataset",
+                           revision=REVISION)
+    df = pd.read_csv(ruta)
+    print("Columnas:", list(df.columns), "| filas:", len(df))
 
-    print(f"Descargando {DATASET} (español)...")
-    ds = load_dataset(DATASET, "es")
-    split = "train" if "train" in ds else list(ds.keys())[0]
-    df = ds[split].to_pandas()
-    print("Columnas disponibles:", list(df.columns))
+    faltan = {COL_TEXTO, COL_ESTRELLAS} - set(df.columns)
+    if faltan:
+        raise KeyError(f"Faltan columnas {faltan}. Columnas reales: {list(df.columns)}")
 
-    c_texto = primera_columna(df, COLS_TEXTO)
-    c_est = primera_columna(df, COLS_ESTRELLAS)
-    df = df[[c_texto, c_est]].rename(columns={c_texto: "texto", c_est: "estrellas"})
+    df = df[[COL_TEXTO, COL_ESTRELLAS]].rename(
+        columns={COL_TEXTO: "texto", COL_ESTRELLAS: "estrellas"})
     df = df.dropna().drop_duplicates(subset="texto")
+
+    if len(df) < 1000:
+        print("AVISO: muy pocas filas; probablemente es la versión demo. "
+              "Revisa REVISION en este script.")
 
     if len(df) > max_filas:
         df = df.sample(max_filas, random_state=42)
