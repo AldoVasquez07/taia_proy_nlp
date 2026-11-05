@@ -1,0 +1,9 @@
+pandas
+scikit-learn
+joblib
+spacy
+datasets
+fastapi
+uvicorn[standard]
+pytest
+httpx
