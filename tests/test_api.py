@@ -1,8 +1,3 @@
-"""Pruebas de la API (FastAPI).
-
-No dependen del modelo real ni de haber descargado datos: cada prueba entrena
-un modelo diminuto en una carpeta temporal y apunta la API hacia él.
-"""
 import joblib
 import pytest
 from fastapi.testclient import TestClient

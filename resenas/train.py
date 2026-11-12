@@ -1,9 +1,3 @@
-"""Entrena la línea base: TF-IDF + Regresión Logística.
-
-Uso:  python -m resenas.train
-Lee data/raw/reviews.csv (columnas: texto, estrellas), guarda models/modelo.joblib
-y models/metricas.json.
-"""
 import json
 from pathlib import Path
 

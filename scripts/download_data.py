@@ -1,19 +1,3 @@
-"""Descarga MeLiSA (reseñas de Mercado Libre en español) y lo guarda como
-data/raw/reviews.csv con las columnas: texto, estrellas.
-
-Uso:
-    python scripts/download_data.py
-    python scripts/download_data.py --max-filas 60000
-
-NOTA IMPORTANTE (documéntala en el informe):
-- El repo `lpsc-fiuba/melisa` en la rama `main` solo trae una versión DEMO
-  (archivos de ~0.5 KB). Los autores publicaron antes la versión completa
-  (es/train.csv ~117 MB) en el commit fijado abajo, por eso se descarga con `revision=`.
-- Ya no se usa `datasets.load_dataset`: las versiones nuevas de `datasets` no
-  soportan scripts de carga (melisa.py). Se descarga el CSV directo con huggingface_hub.
-- Licencia: acuerdo de Amazon (https://docs.opendata.aws/amazon-reviews-ml/license.txt).
-  Léela y úsalo solo con fines académicos, citando la fuente.
-"""
 import argparse
 from pathlib import Path
 
@@ -25,7 +9,6 @@ REVISION = "701a2f09c91fcbf1d7da0c485c6482e920dd9aa8"  # commit con los datos co
 ARCHIVO = "es/train.csv"
 SALIDA = Path(__file__).resolve().parent.parent / "data" / "raw" / "reviews.csv"
 
-# Columnas documentadas en la tarjeta del dataset
 COL_TEXTO = "review_content"
 COL_ESTRELLAS = "review_rate"
 

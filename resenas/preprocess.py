@@ -1,9 +1,3 @@
-"""Preprocesamiento de texto en español (Laboratorio 1, con decisiones propias).
-
-Decisión clave: se CONSERVAN las negaciones y cuantificadores («no», «nunca»,
-«sin», «muy», «poco»...) aunque spaCy los marque como stopwords, porque cambian
-el sentimiento (ver diapositiva 11).
-"""
 import re
 import warnings
 from functools import lru_cache

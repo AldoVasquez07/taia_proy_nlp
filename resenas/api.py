@@ -1,8 +1,3 @@
-"""API REST de la demo.
-
-Uso:  uvicorn resenas.api:app --reload
-Docs interactivas: http://127.0.0.1:8000/docs
-"""
 from functools import lru_cache
 from pathlib import Path
 
