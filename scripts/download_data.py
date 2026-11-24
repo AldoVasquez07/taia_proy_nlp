@@ -13,13 +13,8 @@ COL_TEXTO = "review_content"
 COL_ESTRELLAS = "review_rate"
 
 
-def main(max_filas: int) -> None:
-    print(f"Descargando {ARCHIVO} de {REPO} (revisión {REVISION[:7]})...")
-    ruta = hf_hub_download(repo_id=REPO, filename=ARCHIVO, repo_type="dataset",
-                           revision=REVISION)
-    df = pd.read_csv(ruta)
-    print("Columnas:", list(df.columns), "| filas:", len(df))
-
+def preparar(df: pd.DataFrame, max_filas: int) -> pd.DataFrame:
+    """Selecciona y renombra columnas, quita nulos/duplicados y submuestrea (semilla fija)."""
     faltan = {COL_TEXTO, COL_ESTRELLAS} - set(df.columns)
     if faltan:
         raise KeyError(f"Faltan columnas {faltan}. Columnas reales: {list(df.columns)}")
@@ -27,13 +22,22 @@ def main(max_filas: int) -> None:
     df = df[[COL_TEXTO, COL_ESTRELLAS]].rename(
         columns={COL_TEXTO: "texto", COL_ESTRELLAS: "estrellas"})
     df = df.dropna().drop_duplicates(subset="texto")
+    if len(df) > max_filas:
+        df = df.sample(max_filas, random_state=42)
+    return df
 
+
+def main(max_filas: int) -> None:
+    print(f"Descargando {ARCHIVO} de {REPO} (revisión {REVISION[:7]})...")
+    ruta = hf_hub_download(repo_id=REPO, filename=ARCHIVO, repo_type="dataset",
+                           revision=REVISION)
+    bruto = pd.read_csv(ruta)
+    print("Columnas:", list(bruto.columns), "| filas:", len(bruto))
+
+    df = preparar(bruto, max_filas)
     if len(df) < 1000:
         print("AVISO: muy pocas filas; probablemente es la versión demo. "
               "Revisa REVISION en este script.")
-
-    if len(df) > max_filas:
-        df = df.sample(max_filas, random_state=42)
 
     SALIDA.parent.mkdir(parents=True, exist_ok=True)
     df.to_csv(SALIDA, index=False)

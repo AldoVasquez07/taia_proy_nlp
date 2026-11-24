@@ -5,7 +5,7 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.linear_model import LogisticRegression
 
 from resenas import api
-from resenas.preprocess import preprocesar_lote
+from resenas.preprocess import normalizar_lote
 
 TEXTOS = [
     "excelente producto llegó rápido muy bueno",
@@ -26,7 +26,7 @@ def modelo_falso(tmp_path, monkeypatch):
     """Entrena un modelo mínimo y hace que la API lo use."""
     vec = TfidfVectorizer(ngram_range=(1, 2))
     clf = LogisticRegression(max_iter=1000)
-    clf.fit(vec.fit_transform(preprocesar_lote(TEXTOS)), CLASES)
+    clf.fit(vec.fit_transform(normalizar_lote(TEXTOS)), CLASES)
 
     ruta = tmp_path / "modelo.joblib"
     joblib.dump({"vectorizador": vec, "modelo": clf}, ruta)
@@ -88,9 +88,10 @@ def test_terminos_influyentes_son_validos(cliente, modelo_falso):
     assert pesos == sorted(pesos, reverse=True)
 
 
-def test_texto_preprocesado_conserva_negacion(cliente, modelo_falso):
+def test_texto_preprocesado_marca_la_negacion(cliente, modelo_falso):
     datos = cliente.post("/predecir", json={"texto": "El producto no funciona"}).json()
-    assert "no" in datos["texto_preprocesado"].split()
+    tokens = datos["texto_preprocesado"].split()
+    assert "no" in tokens and "neg_funciona" in tokens
 
 
 def test_texto_muy_corto_es_rechazado(cliente, modelo_falso):
@@ -106,3 +107,52 @@ def test_predecir_sin_modelo_devuelve_503(cliente, sin_modelo):
     r = cliente.post("/predecir", json={"texto": "producto excelente"})
     assert r.status_code == 503
     assert "resenas.train" in r.json()["detail"]
+
+# ------------------------------------------------------------------ /predecir_lote
+def test_lote_devuelve_un_resultado_por_texto(cliente, modelo_falso):
+    textos = ["excelente producto muy bueno", "llegó roto y no funciona", "cumple nada especial"]
+    r = cliente.post("/predecir_lote", json={"textos": textos})
+    assert r.status_code == 200
+    datos = r.json()
+    assert datos["n"] == 3 and len(datos["resultados"]) == 3
+    for res in datos["resultados"]:
+        assert res["etiqueta"] in {"negativo", "neutro", "positivo"}
+        assert res["confianza"] == max(res["probabilidades"].values())
+        assert sum(res["probabilidades"].values()) == pytest.approx(1.0, abs=1e-3)
+
+
+def test_lote_coincide_con_prediccion_individual(cliente, modelo_falso):
+    texto = "me encantó funciona genial"
+    individual = cliente.post("/predecir", json={"texto": texto}).json()
+    lote = cliente.post("/predecir_lote", json={"textos": [texto]}).json()["resultados"][0]
+    assert lote["etiqueta"] == individual["etiqueta"]
+
+
+@pytest.mark.parametrize("cuerpo", [
+    {"textos": []},                                   # lista vacía
+    {"textos": ["bien", "ok"]},                       # un texto demasiado corto
+    {"textos": ["   ", "texto válido aquí"]},         # texto solo con espacios
+    {},                                               # falta el campo
+    {"textos": ["abc"] * (api.MAX_LOTE + 1)},         # demasiados textos
+])
+def test_lote_rechaza_entradas_invalidas(cliente, modelo_falso, cuerpo):
+    assert cliente.post("/predecir_lote", json=cuerpo).status_code == 422
+
+
+def test_lote_sin_modelo_devuelve_503(cliente, sin_modelo):
+    r = cliente.post("/predecir_lote", json={"textos": ["producto excelente"]})
+    assert r.status_code == 503
+
+
+# ------------------------------------------------------------------ /metricas
+def test_metricas_sin_archivo_devuelve_404(cliente, tmp_path, monkeypatch):
+    monkeypatch.setattr(api, "METRICAS", tmp_path / "no_existe.json")
+    assert cliente.get("/metricas").status_code == 404
+
+
+def test_metricas_devuelve_el_json_guardado(cliente, tmp_path, monkeypatch):
+    ruta = tmp_path / "metricas.json"
+    ruta.write_text('{"clases": ["negativo"], "kappa": 0.5}', encoding="utf-8")
+    monkeypatch.setattr(api, "METRICAS", ruta)
+    r = cliente.get("/metricas")
+    assert r.status_code == 200 and r.json()["kappa"] == 0.5
