@@ -36,7 +36,7 @@ Todas las configuraciones usan el mismo conjunto de prueba (12 000 reseñas).
 **Modelo final (hold-out):** accuracy 0.761, F1 macro 0.72. Por clase (precisión/recall/F1): negativo 0.88/0.79/0.83 · neutro 0.48/0.57/0.52 · positivo 0.82/0.83/0.83.
 **Validación cruzada 5-fold:** accuracy 0.759 ± 0.002, F1 macro 0.721 ± 0.003 (estable, sin sobreajuste a la partición).
 
-**Conclusiones de la ablación:** (a) bigramas > unigramas (+2.3 F1); (b) TF-IDF > BoW (+1.7); (c) el marcado de negaciones suma +0.8 con bigramas y +1.5 con unigramas; (d) regresión logística supera a NB y SVM lineal en F1 macro.
+**Conclusiones de la ablación:** (a) bigramas > unigramas (+2.3 F1); (b) TF-IDF > BoW (+1.7); (c) el marcado de negaciones suma +0.8 con bigramas y +1.5 con unigramas; (d) regresión logística supera a NB y SVM lineal en F1 macro.  (e) eliminar stopwords resta 3.3 puntos de F1, mientras que la lematización no tiene efecto apreciable (±0.1).
 
 **Análisis de errores:** de 12 000 reseñas hay 2 870 errores, pero solo 342 son graves (positivo↔negativo); el **88 %** involucra la clase neutro. Los fallos más «seguros» son casi siempre etiquetas ruidosas (p. ej. «Todo excelente» con 2★): el modelo acierta el sentimiento del texto, pero no la etiqueta derivada de estrellas.
 
