@@ -40,7 +40,7 @@ python -m venv .venv && source .venv/bin/activate    # Windows: .venv\Scripts\ac
 pip install -r requirements.txt
 ```
 
-`requirements.txt` ya incluye el modelo de spaCy `es_core_news_sm`. Si su instalación falla en tu sistema, instálalo manualmente:
+`requirements.txt` ya incluye el modelo de spaCy `es_core_news_sm`. Si esa instalación falla en tu sistema, instala el modelo manualmente:
 
 ```bash
 python -m spacy download es_core_news_sm
