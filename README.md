@@ -119,8 +119,7 @@ models/                    modelo y métricas entrenados (ignorados por git)
 **Evaluadas en la ablación (`resenas/evaluar.py`):** lematización y filtrado de stopwords con spaCy, Bag of Words, unigramas vs. bigramas, Naive Bayes y SVM lineal.
 
 ## Decisiones de diseño
-
-- **El preprocesamiento final NO lematiza ni quita stopwords.** La Evidencia 3 usaba spaCy (lemas, sin stopwords); al compararlo contra el texto normalizado, la lematización *empeoró* el F1 (ver resultados). Perdía información útil («pero», «para», formas verbales) y el lematizador del modelo `sm` comete errores. Por eso spaCy quedó como línea base de la ablación y no en producción (la API además se vuelve más rápida).
+- **El preprocesamiento final NO lematiza ni quita stopwords.** La Evidencia 3 usaba spaCy (lemas, sin stopwords). La ablación separó los dos efectos: **quitar stopwords empeoró el F1 macro en 3.3 puntos** (0.683 → 0.716), probablemente porque se pierden conectores con información («pero», «para»); en cambio, **lematizar no cambió el resultado** (0.716 con lemas frente a 0.717 con texto normalizado). Como no aporta mejora, se descartó por simplicidad y velocidad: la API no depende de spaCy y predice más rápido. spaCy quedó como línea base de la ablación.
 - **Marcado de negaciones** en lugar de depender solo de bigramas: captura negaciones a distancia («no es nada bueno»).
 - **Bigramas (1–2) en TF-IDF** y `sublinear_tf`; un único TF-IDF para todo el texto.
 - **`class_weight="balanced"`** para compensar que «neutro» (solo 3 estrellas) tiene la mitad de ejemplos que las otras clases.
