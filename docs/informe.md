@@ -16,7 +16,7 @@ Dataset **MeLiSA** (reseñas de Mercado Libre, Hugging Face, revisión fija), mu
 4. **Regresión logística** con `class_weight="balanced"` y explicabilidad por coeficientes × peso TF-IDF.
 5. **spaCy** (lematización y stopwords) se evaluó como línea base de la ablación.
 
-**Decisión clave:** la Evidencia 3 lematizaba y quitaba stopwords. La ablación mostró que eso *perjudica* (F1 macro 0.683 frente a 0.716 conservando stopwords), porque se pierde información («pero», «para») y el lematizador pequeño introduce errores. El modelo final usa texto normalizado + negaciones, que además es más rápido en producción.
+**Decisión clave:** la Evidencia 3 lematizaba y quitaba stopwords. La ablación permitió separar ambos efectos: eliminar stopwords *perjudica* (F1 macro 0.683 frente a 0.716 al conservarlas), mientras que lematizar es neutro (0.716 con lemas frente a 0.717 con texto normalizado). Al no aportar mejora, la lematización se descartó: el modelo final usa texto normalizado + marcado de negaciones, con menos dependencias y mayor velocidad en producción.
 
 ## 4. Evaluación
 Todas las configuraciones usan el mismo conjunto de prueba (12 000 reseñas).
