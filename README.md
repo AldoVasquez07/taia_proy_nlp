@@ -5,7 +5,7 @@ usando preprocesamiento en español (spaCy) + **TF-IDF** + **Regresión Logísti
 expone como una **API REST (FastAPI)** y como una **interfaz web (Streamlit)**; ambas devuelven
 además los términos que más influyeron en la predicción.
 
-**Autores:** _Aldo Ray Vasquez Lopez_ y __Alvaro Andre Machaca Melendez__ · **Estado:** Evidencia 4 (demo al 100 %)
+**Autores:** _Aldo Ray Vasquez Lopez_ y _Alvaro Andre Machaca Melendez_ · **Estado:** Evidencia 4 (demo al 100 %)
 
 ## Demo
 
