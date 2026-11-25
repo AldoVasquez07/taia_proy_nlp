@@ -33,8 +33,7 @@ https://huggingface.co/datasets/lpsc-fiuba/melisa
 Mapeo de etiquetas: 1–2 estrellas → negativo · 3 → neutro · 4–5 → positivo.
 
 ## Instalación
-
-Requiere Python 3.10+.
+Requiere **Python 3.12 o superior** (las versiones fijadas de NumPy y SciPy no soportan versiones anteriores). Verifica la tuya con `python --version`.
 
 ```bash
 python -m venv .venv && source .venv/bin/activate    # Windows: .venv\Scripts\activate
