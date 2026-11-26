@@ -1,0 +1,5 @@
+# Dependencias OPCIONALES, solo para la comparación con Transformer (resenas/baseline_transformer.py).
+# No van en requirements.txt para que el CI no descargue gigabytes de PyTorch.
+-r requirements.txt
+torch
+transformers

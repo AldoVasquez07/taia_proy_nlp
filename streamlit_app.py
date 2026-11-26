@@ -11,7 +11,7 @@ import pandas as pd
 import streamlit as st
 from fastapi import HTTPException
 
-from resenas.api import MAX_LOTE, predecir, predecir_lote
+from resenas.api import MAX_LOTE, es_valido, predecir, predecir_lote
 
 MODELS = Path(__file__).resolve().parent / "models"
 METRICAS = MODELS / "metricas.json"
@@ -94,9 +94,9 @@ with tab_lote:
                                          min(200, MAX_LOTE))
                 if st.button("Clasificar lote", type="primary"):
                     textos = df_in[col].dropna().astype(str).str.strip()
-                    textos = textos[textos.str.len() >= 3].head(int(limite))
+                    textos = textos[textos.map(es_valido)].head(int(limite))
                     if textos.empty:
-                        st.warning("No hay textos válidos (mínimo 3 caracteres) en esa columna.")
+                        st.warning("No hay textos válidos (3 a 5000 caracteres, con alguna letra o número) en esa columna.")
                     else:
                         try:
                             with st.spinner(f"Clasificando {len(textos)} reseñas..."):

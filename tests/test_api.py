@@ -103,6 +103,32 @@ def test_falta_el_campo_texto(cliente, modelo_falso):
     assert cliente.post("/predecir", json={}).status_code == 422
 
 
+@pytest.mark.parametrize("texto", ["   ", "???", "...!!!", "¡¡¡ ___ ???"])
+def test_texto_sin_contenido_lexico_es_rechazado(cliente, modelo_falso, texto):
+    r = cliente.post("/predecir", json={"texto": texto})
+    assert r.status_code == 422
+    assert "letra" in r.json()["detail"]
+
+
+def test_texto_demasiado_largo_es_rechazado(cliente, modelo_falso):
+    r = cliente.post("/predecir", json={"texto": "a" * (api.MAX_CHARS + 1)})
+    assert r.status_code == 422
+
+
+def test_texto_en_el_limite_es_aceptado(cliente, modelo_falso):
+    r = cliente.post("/predecir", json={"texto": "a" * api.MAX_CHARS})
+    assert r.status_code == 200
+
+
+@pytest.mark.parametrize("texto,esperado", [
+    ("producto excelente", True), ("ok", False), ("   ", False), ("???", False),
+    ("¡¡buenísimo!!", True), ("123", True), ("a" * api.MAX_CHARS, True),
+    ("a" * (api.MAX_CHARS + 1), False),
+])
+def test_es_valido(texto, esperado):
+    assert api.es_valido(texto) is esperado
+
+
 def test_predecir_sin_modelo_devuelve_503(cliente, sin_modelo):
     r = cliente.post("/predecir", json={"texto": "producto excelente"})
     assert r.status_code == 503
@@ -132,6 +158,8 @@ def test_lote_coincide_con_prediccion_individual(cliente, modelo_falso):
     {"textos": []},                                   # lista vacía
     {"textos": ["bien", "ok"]},                       # un texto demasiado corto
     {"textos": ["   ", "texto válido aquí"]},         # texto solo con espacios
+    {"textos": ["???", "texto válido aquí"]},         # texto solo con signos
+    {"textos": ["a" * (api.MAX_CHARS + 1)]},          # texto demasiado largo
     {},                                               # falta el campo
     {"textos": ["abc"] * (api.MAX_LOTE + 1)},         # demasiados textos
 ])

@@ -1,4 +1,5 @@
 import re
+import unicodedata
 import warnings
 from functools import lru_cache
 
@@ -53,15 +54,71 @@ def limpiar(texto: str) -> str:
     return _RE_ESPACIOS.sub(" ", texto).strip()
 
 
-def normalizar(texto: str) -> str:
+_RE_ALARGAMIENTO = re.compile(r"([^\W\d_])\1{2,}")   # 3 o más veces la misma LETRA
+
+
+def colapsar_alargamientos(texto: str) -> str:
+    """«buenísimooo» -> «buenísimo». Solo letras (los dígitos no: «1000» queda igual).
+    En español ninguna letra se repite 3 veces seguidas, así que colapsar a 1 es seguro."""
+    return _RE_ALARGAMIENTO.sub(r"\1", texto)
+
+
+def quitar_tildes(texto: str) -> str:
+    """«no sirvió» -> «no sirvio». Conserva la ñ (año != ano)."""
+    salida = []
+    for c in unicodedata.normalize("NFD", texto):
+        if unicodedata.combining(c):
+            if c == "\u0303" and salida and salida[-1] in "nN":   # tilde de la ñ
+                salida.append(c)
+            continue
+        salida.append(c)
+    return unicodedata.normalize("NFC", "".join(salida))
+
+
+def _es_emoji(c: str) -> bool:
+    o = ord(c)
+    return o >= 0x1F000 or 0x2600 <= o <= 0x27BF or 0x2B00 <= o <= 0x2BFF
+
+
+def emojis_a_tokens(texto: str) -> str:
+    """Cada emoji/símbolo (😍, ★, 👍...) pasa a una palabra, p. ej. «emoji_black_star».
+    Es necesario porque el tokenizador de TF-IDF ignora los emojis. Se omiten los
+    modificadores de tono de piel y las banderas (ruido)."""
+    salida = []
+    for c in texto:
+        if not _es_emoji(c):
+            salida.append(c)
+            continue
+        o = ord(c)
+        if 0x1F3FB <= o <= 0x1F3FF or 0x1F1E6 <= o <= 0x1F1FF:
+            continue
+        nombre = unicodedata.name(c, "")
+        salida.append(" emoji_" + nombre.lower().replace(" ", "_").replace("-", "_") + " "
+                      if nombre else " ")
+    return _RE_ESPACIOS.sub(" ", "".join(salida)).strip()
+
+
+def normalizar(texto: str, emojis: bool = False, alargamientos: bool = False,
+               tildes: bool = False) -> str:
     """Preprocesamiento del MODELO FINAL: limpieza + minúsculas + marcado de negaciones.
-    No usa spaCy: en la ablación (ver evaluar.py) la lematización y el filtrado de
-    stopwords empeoraron el F1, así que se conserva el texto casi tal cual."""
-    return marcar_negaciones(limpiar(texto))
+    No usa spaCy: en la ablación (ver evaluar.py) quitar stopwords empeoró el F1 y lematizar
+    no aportó, así que se conserva el texto casi tal cual.
+
+    Opciones (apagadas por defecto; la ablación decide si se adoptan):
+      emojis         emojis/símbolos -> palabras (antes de marcar negaciones)
+      alargamientos  «buenooo» -> «bueno» (antes de marcar negaciones: «nooo» sigue negando)
+      tildes         quita tildes salvo la ñ (DESPUÉS de marcar: «ningún» debe seguir negando)"""
+    t = limpiar(texto)
+    if emojis:
+        t = emojis_a_tokens(t)
+    if alargamientos:
+        t = colapsar_alargamientos(t)
+    t = marcar_negaciones(t)
+    return quitar_tildes(t) if tildes else t
 
 
-def normalizar_lote(textos) -> list[str]:
-    return [normalizar(t) for t in textos]
+def normalizar_lote(textos, **opciones) -> list[str]:
+    return [normalizar(t, **opciones) for t in textos]
 
 
 @lru_cache(maxsize=1)

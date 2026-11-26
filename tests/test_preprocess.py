@@ -1,5 +1,9 @@
-from resenas.preprocess import (limpiar, marcar_negaciones, normalizar, normalizar_lote,
-                                preprocesar, preprocesar_lote)
+import pytest
+
+from resenas import preprocess
+from resenas.preprocess import (colapsar_alargamientos, emojis_a_tokens, limpiar,
+                                marcar_negaciones, normalizar, normalizar_lote, preprocesar,
+                                preprocesar_lote, quitar_tildes)
 
 
 def test_limpiar_quita_urls_y_espacios():
@@ -85,3 +89,71 @@ def test_preprocesar_puede_conservar_stopwords():
     con = preprocesar("el producto llegó rápido", quitar_stop=False)
     sin = preprocesar("el producto llegó rápido", quitar_stop=True)
     assert "el" in con and "el" not in sin
+
+
+# --------------------------------------------- preprocesamiento propio de reseñas
+def test_colapsar_alargamientos():
+    assert colapsar_alargamientos("buenísimooooo") == "buenísimo"
+    assert colapsar_alargamientos("NOOOO sirve") == "NO sirve"
+    assert colapsar_alargamientos("llegó rápido") == "llegó rápido"            # 'll' se respeta
+    assert colapsar_alargamientos("1000 unidades") == "1000 unidades"          # dígitos intactos
+
+
+def test_quitar_tildes_conserva_la_enie():
+    assert quitar_tildes("no sirvió, pésimo") == "no sirvio, pesimo"
+    assert quitar_tildes("año") == "año"
+    assert quitar_tildes("pingüino") == "pinguino"
+
+
+def test_emojis_a_tokens():
+    assert emojis_a_tokens("me encantó ★★") == "me encantó emoji_black_star emoji_black_star"
+    assert emojis_a_tokens("bien 👍🏽") == "bien emoji_thumbs_up_sign"   # sin tono de piel
+    assert emojis_a_tokens("sin emojis") == "sin emojis"
+
+
+def test_normalizar_por_defecto_no_cambia():
+    # Las opciones están apagadas: el modelo final se comporta igual que antes
+    assert normalizar("Buenísimooo 😍 ningún problema") == normalizar(
+        "Buenísimooo 😍 ningún problema", emojis=False, alargamientos=False, tildes=False)
+    assert "emoji" not in normalizar("Buenísimooo 😍")
+
+
+def test_normalizar_con_opciones_combinadas():
+    out = normalizar("NOOOO sirvió 😡", emojis=True, alargamientos=True, tildes=True)
+    # el alargamiento se colapsa ANTES de marcar: «no» sigue siendo negador
+    assert out.split()[:2] == ["no", "neg_sirvio"]
+    assert out == "no neg_sirvio neg_emoji_pouting_face"
+
+
+def test_tildes_se_quitan_despues_de_marcar_negaciones():
+    # «ningún» (con tilde) es negador; si se quitara la tilde antes, dejaría de negar
+    assert normalizar("ningún problema", tildes=True) == "ningun neg_problema"
+
+
+def test_normalizar_lote_acepta_opciones():
+    textos = ["Buenísimooo 😍", "no sirvió"]
+    assert normalizar_lote(textos, emojis=True, alargamientos=True, tildes=True) == [
+        normalizar(t, emojis=True, alargamientos=True, tildes=True) for t in textos]
+
+
+# ------------------------------------------------------------------ camino de spaCy
+def _hay_spacy() -> bool:
+    try:
+        import spacy
+        spacy.load("es_core_news_sm")
+        return True
+    except Exception:
+        return False
+
+
+@pytest.mark.skipif(not _hay_spacy(), reason="spaCy / es_core_news_sm no instalado")
+def test_lematiza_con_spacy():
+    lemas = preprocesar("Los productos llegaron rotos", quitar_stop=False)
+    assert "llegar" in lemas and "producto" in lemas
+
+
+def test_sin_spacy_usa_el_tokenizador_basico(monkeypatch):
+    # Se fuerza la ausencia de spaCy: la prueba es igual en cualquier máquina
+    monkeypatch.setattr(preprocess, "_cargar_nlp", lambda: None)
+    assert preprocesar("El producto no funciona") == ["producto", "no", "funciona"]
+    assert preprocesar_lote(["El producto no funciona"]) == ["producto no funciona"]

@@ -1,3 +1,4 @@
+import re
 import json
 from functools import lru_cache
 from pathlib import Path
@@ -13,14 +14,18 @@ RAIZ = Path(__file__).resolve().parent.parent
 MODELO = RAIZ / "models" / "modelo.joblib"
 METRICAS = RAIZ / "models" / "metricas.json"
 MAX_LOTE = 1000
+MAX_CHARS = 5000                      # longitud máxima de una reseña
+_RE_CONTENIDO = re.compile(r"[^\W_]")  # al menos una letra o un dígito
+MSG_TEXTO = (f"El texto debe tener entre 3 y {MAX_CHARS} caracteres e incluir "
+             "al menos una letra o un número.")
 
 app = FastAPI(title="Clasificador de reseñas en español",
               description="TF-IDF + Regresión Logística sobre reseñas de Mercado Libre (MeLiSA).")
 
 
 class Entrada(BaseModel):
-    texto: str = Field(..., min_length=3, examples=["El producto llegó roto y no funciona"])
-
+    texto: str = Field(..., min_length=3, max_length=MAX_CHARS,
+                       examples=["El producto llegó roto y no funciona"])
 
 class EntradaLote(BaseModel):
     textos: list[str] = Field(..., min_length=1, max_length=MAX_LOTE)
@@ -32,6 +37,16 @@ def _cargar():
         raise HTTPException(503, "Modelo no entrenado. Ejecuta: python -m resenas.train")
     return joblib.load(MODELO)
 
+def es_valido(texto: str) -> bool:
+    """True si el texto sirve para clasificar: 3..MAX_CHARS caracteres y alguna letra/dígito."""
+    t = texto.strip()
+    return 3 <= len(t) <= MAX_CHARS and _RE_CONTENIDO.search(t) is not None
+
+
+def validar_texto(texto: str) -> None:
+    if not es_valido(texto):
+        raise HTTPException(422, MSG_TEXTO)
+
 
 def _terminos(vec, clf, fila, idx: int, top_k: int) -> list[dict]:
     """Términos que más empujaron hacia la clase predicha: peso TF-IDF * coeficiente."""
@@ -42,6 +57,7 @@ def _terminos(vec, clf, fila, idx: int, top_k: int) -> list[dict]:
 
 
 def predecir(texto: str, top_k: int = 5) -> dict:
+    validar_texto(texto)
     art = _cargar()
     vec, clf = art["vectorizador"], art["modelo"]
     limpio = normalizar(texto)
@@ -59,6 +75,9 @@ def predecir(texto: str, top_k: int = 5) -> dict:
 def predecir_lote(textos: list[str]) -> list[dict]:
     """Versión vectorizada (una sola llamada al modelo) para muchos textos.
     Devuelve etiqueta, confianza y probabilidades; sin términos influyentes (más liviano)."""
+    for t in textos:
+        validar_texto(t)
+    
     art = _cargar()
     vec, clf = art["vectorizador"], art["modelo"]
     probas = clf.predict_proba(vec.transform(normalizar_lote(textos)))
@@ -86,8 +105,6 @@ def endpoint_predecir(entrada: Entrada):
 @app.post("/predecir_lote")
 def endpoint_predecir_lote(entrada: EntradaLote):
     textos = [t.strip() for t in entrada.textos]
-    if any(len(t) < 3 for t in textos):
-        raise HTTPException(422, "Todos los textos deben tener al menos 3 caracteres.")
     return {"n": len(textos), "resultados": predecir_lote(textos)}
 
 

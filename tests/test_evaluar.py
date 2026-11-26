@@ -18,7 +18,8 @@ def entorno(tmp_path_factory, df_sintetico):
 
 def test_preparar_textos_devuelve_todas_las_variantes(entorno):
     df, textos, _, _ = entorno
-    assert set(textos) == {"normalizado", "negaciones", "lemas", "lemas_con_stop"}
+    assert set(textos) == {"normalizado", "negaciones", "lemas", "lemas_con_stop",
+                           "neg_emojis", "neg_alarg", "neg_tildes", "neg_todo"}
     assert all(len(s) == len(df) for s in textos.values())
     assert all(t == t.lower() for t in textos["normalizado"])
     # Las stopwords solo se quitan en "lemas"

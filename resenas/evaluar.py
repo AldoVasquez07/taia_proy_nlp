@@ -54,6 +54,10 @@ CONFIGURACIONES = {
     "Normalizado + negaciones + TF-IDF(1) + LogReg": (
         "negaciones", _tfidf((1, 1)), _LR),
     FINAL: ("negaciones", _tfidf((1, 2)), _LR),
+    "Final + emojis como tokens": ("neg_emojis", _tfidf((1, 2)), _LR),
+    "Final + alargamientos colapsados": ("neg_alarg", _tfidf((1, 2)), _LR),
+    "Final + sin tildes": ("neg_tildes", _tfidf((1, 2)), _LR),
+    "Final + emojis + alargamientos + sin tildes": ("neg_todo", _tfidf((1, 2)), _LR),
     "Normalizado + negaciones + TF-IDF(1-2) + ComplementNB": (
         "negaciones", _tfidf((1, 2)), lambda: ComplementNB()),
     "Normalizado + negaciones + TF-IDF(1-2) + LinearSVC": (
@@ -66,13 +70,19 @@ def preparar_textos(df: pd.DataFrame) -> dict[str, pd.Series]:
       normalizado    limpieza + minúsculas
       negaciones     normalizado + marcado de ámbito de negación  (= modelo final)
       lemas          spaCy: lemas, sin stopwords (salvo negaciones)  (= base de la Evid. 3)
-      lemas_con_stop spaCy: lemas, conservando stopwords"""
+      lemas_con_stop spaCy: lemas, conservando stopwords
+      neg_*          modelo final + emojis / alargamientos / sin tildes / las tres"""
     textos = df["texto"].tolist()
     print("Preprocesando con spaCy (una sola vez, tarda unos minutos)...")
     serie = lambda xs: pd.Series(xs, index=df.index)
     return {
         "normalizado": serie([limpiar(t).lower() for t in textos]),
         "negaciones": serie(normalizar_lote(textos)),
+        "neg_emojis": serie(normalizar_lote(textos, emojis=True)),
+        "neg_alarg": serie(normalizar_lote(textos, alargamientos=True)),
+        "neg_tildes": serie(normalizar_lote(textos, tildes=True)),
+        "neg_todo": serie(normalizar_lote(textos, emojis=True, alargamientos=True,
+                                          tildes=True)),
         "lemas": serie(preprocesar_lote(textos)),
         "lemas_con_stop": serie(preprocesar_lote(textos, quitar_stop=False)),
     }
